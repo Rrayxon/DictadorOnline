@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictado por Voz</title>
+    <!-- Enlace de importación de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #FFA500; /* Naranja */
+            color: #FFFFFF; /* Blanco para el texto */
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-family: "Itim", cursive;
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        textarea {
+            background-color: #1E90FF; /* Azul */
+            color: #FFFFFF; /* Blanco para el texto en el cuadro */
+            border: 2px solid #0000FF; /* Azul oscuro para el borde */
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 16px;
+            resize: none;
+            width: 80%;
+            max-width: 600px;
+        }
+
+        p {
+            margin-top: 10px;
+        }
+
+        button {
+            background-color: #1E90FF; /* Azul */
+            color: #FFFFFF; /* Blanco para el texto */
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #1C86EE; /* Azul más oscuro al pasar el cursor */
+        }
+
+        select {
+            background-color: #1E90FF; /* Azul */
+            color: #FFFFFF; /* Blanco para el texto */
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lector y Dictado de Texto Palabra por palabra Online</h1>
+    <textarea id="text-input" rows="10" cols="50" placeholder="Escribe tu texto aquí..."></textarea>
+    <p>Presiona la tecla "d" para escuchar la siguiente palabra y "a" para la palabra anterior.</p>
+    <button id="toggle-word-mode">Modo palabra por palabra</button>
+    <button id="toggle-phrase-mode">Modo frase por frase</button>
+    <select id="voice-selection"></select>
+
+    <script>
+        // Obtener elementos del DOM
+        const textInput = document.getElementById('text-input');
+        const toggleWordModeButton = document.getElementById('toggle-word-mode');
+        const togglePhraseModeButton = document.getElementById('toggle-phrase-mode');
+        const voiceSelection = document.getElementById('voice-selection');
+
+        // Variables para el manejo del texto y el índice de palabras
+        let words = [];
+        let currentIndex = 0;
+        let mode = 'word'; // Modo inicial: palabra por palabra
+        let selectedVoice = null;
+
+        // Función para obtener y establecer la voz deseada
+        function populateVoiceList() {
+            const voices = window.speechSynthesis.getVoices();
+            voiceSelection.innerHTML = '';
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                voiceSelection.appendChild(option);
+            });
+            selectedVoice = voices[0]; // Seleccionar la primera voz por defecto
+        }
+
+        // Asegurarse de que las voces estén cargadas antes de intentar seleccionar una
+        window.speechSynthesis.onvoiceschanged = populateVoiceList;
+
+        // Actualizar la voz seleccionada cuando se elige una opción diferente
+        voiceSelection.addEventListener('change', () => {
+            const voices = window.speechSynthesis.getVoices();
+            selectedVoice = voices[voiceSelection.value];
+        });
+
+        // Función para agregar pausas y mencionar signos de puntuación
+        function processTextForSpeech(text) {
+            return text
+                .replace(/\.\s*\n/g, " punto y aparte. ")
+                .replace(/\.\s+/g, " punto y seguido. ")
+                .replace(/,\s+/g, " coma, ");
+        }
+
+        // Función para sintetizar la voz
+        function speakText(text) {
+            const processedText = processTextForSpeech(text);
+            const utterance = new SpeechSynthesisUtterance(processedText);
+            utterance.lang = 'es-ES'; // Configuración del idioma a español
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Función para dictar la siguiente palabra o frase
+        function dictateNext() {
+            if (mode === 'word') {
+                if (currentIndex < words.length) {
+                    speakText(words[currentIndex]);
+                    currentIndex++;
+                } else {
+                    alert('No hay más palabras para dictar.');
+                }
+            } else if (mode === 'phrase') {
+                if (currentIndex < words.length) {
+                    const phrase = words.slice(currentIndex, currentIndex + 4).join(' ');
+                    speakText(phrase);
+                    currentIndex += 4;
+                } else {
+                    alert('No hay más frases para dictar.');
+                }
+            }
+        }
+
+        // Función para dictar la palabra o frase anterior
+        function dictatePrevious() {
+            if (mode === 'word') {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    speakText(words[currentIndex]);
+                } else {
+                    alert('No hay palabras anteriores para dictar.');
+                }
+            } else if (mode === 'phrase') {
+                if (currentIndex > 0) {
+                    currentIndex = Math.max(currentIndex - 4, 0);
+                    const phrase = words.slice(currentIndex, currentIndex + 4).join(' ');
+                    speakText(phrase);
+                } else {
+                    alert('No hay frases anteriores para dictar.');
+                }
+            }
+        }
+
+        // Evento para capturar la tecla presionada
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'd') {
+                dictateNext();
+                event.preventDefault(); // Prevenir el comportamiento por defecto de la tecla
+            } else if (event.key === 'a') {
+                dictatePrevious();
+                event.preventDefault(); // Prevenir el comportamiento por defecto de la tecla
+            }
+        });
+
+        // Evento para actualizar las palabras cuando cambia el texto
+        textInput.addEventListener('input', () => {
+            const text = textInput.value.trim();
+            words = text.split(/\s+/); // Dividir el texto en palabras
+            currentIndex = 0; // Reiniciar el índice de palabras
+        });
+
+        // Eventos para alternar modos
+        toggleWordModeButton.addEventListener('click', () => {
+            mode = 'word';
+            alert('Modo cambiado a palabra por palabra.');
+        });
+
+        togglePhraseModeButton.addEventListener('click', () => {
+            mode = 'phrase';
+            alert('Modo cambiado a frase por frase.');
+        });
+
+        // Poblar la lista de voces al cargar la página
+        populateVoiceList();
+    </script>
+</body>
+</html>
